@@ -1,5 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
+import uniqid from 'uniqid'
+import BottomNav from '../shared/BottomNav'
 import * as UI from '../shared/ui'
+import PubSub from 'pubsub-js'
 
 /**
  * Définie la forme d'un objet Todo
@@ -54,13 +58,35 @@ export type TaskList = Array<Todo>
  *    un « filter » sur la « taskList »)
  */
 export default function TodoList() {
+  const [username, setUsername] = useState<string>('')
   const [task, setTask] = useState<Task>('')
   const [taskList, setTaskList] = useState<TaskList>([])
 
+  useEffect(() => {
+    console.log('Souscription au topic "changeUsername"')
+
+    const onUsernameChange = (topic: string, newUsername: string) => {
+      console.log('récéption du username : ' + newUsername)
+      setUsername(newUsername)
+    }
+
+    PubSub.subscribe('changeUsername', onUsernameChange)
+  }, [])
+
+  useEffect(() => {
+    const storeUser = localStorage.getItem('user')
+
+    if (storeUser) {
+      setUsername(JSON.parse(storeUser).displayName)
+    }
+  }, [])
+
+  // onTaskChange :: (React.SyntheticEvent) -> void
   const onTaskChange = (event: React.SyntheticEvent<HTMLInputElement>) => {
     setTask(event.currentTarget.value)
   }
 
+  // addTaskToList :: () -> void
   const addTaskToList = () => {
     // Si je n'ai pas de tache (si « task » est vide)
     if (!task) {
@@ -72,7 +98,7 @@ export default function TodoList() {
     // la liste. Cet objet doit contenir la « task »
     // dans son label
     const todo: Todo = {
-      id: `${taskList.length + 1}`,
+      id: uniqid(),
       done: false,
       label: task,
     }
@@ -87,10 +113,67 @@ export default function TodoList() {
     setTaskList(newList)
   }
 
+  // toggleTodo :: Todo -> React.SyntheticEvent -> Void
+  // onClick :: React.SyntheticEvent -> Void
+  // Optim 1
+  // function toggleTodo(todo: Todo) {
+  //   return function () {
+  //     console.log('click !!!!')
+  //   }
+  // }
+
+  // Optim 2
+  // const toggleTodo = (todo: Todo) => {
+  //   return () => {
+  //     console.log('click !!!!')
+  //   }
+  // }
+
+  // Optim 3
+  const toggleTodo = (todo: Todo) => () => {
+    // On boucle sur toute la liste de todo graçe à un map.
+    // On enregistre la nouvelle liste dans une variables :
+    const newList: TaskList = taskList.map(t => {
+      // Ici t contiendra successivement tout les todos
+      // de ma liste
+
+      // Si l'id du todo sur lequel on boucle est différent
+      // du todo que l'on « toggle »
+      if (t.id === todo.id) {
+        // On retourne le todo tel quel
+        return {
+          ...t,
+          done: !t.done,
+        }
+      } else {
+        return t
+      }
+    })
+
+    // Mise à jour de l'état
+    setTaskList(newList)
+  }
+
+  const removeTodo = (todo: Todo) => (e: React.SyntheticEvent<HTMLElement>) => {
+    e.stopPropagation()
+
+    const newList: TaskList = taskList.filter(t => {
+      if (t.id === todo.id) {
+        return false
+      }
+
+      return true
+    })
+
+    setTaskList(newList)
+  }
+
   return (
     <UI.AppContainer>
       <UI.TopNav>
-        <UI.TopNavIcon className="fa-solid fa-circle-chevron-left"></UI.TopNavIcon>
+        <Link to="/">
+          <UI.TopNavIcon className="fa-solid fa-circle-chevron-left"></UI.TopNavIcon>
+        </Link>
         <UI.TopNavTitle>Petites Courses</UI.TopNavTitle>
       </UI.TopNav>
 
@@ -99,7 +182,7 @@ export default function TodoList() {
           <UI.TagIcon className="fa-solid fa-user"></UI.TagIcon>
           <UI.TagLabelContainer>
             <UI.TagLabelEntitled>Par</UI.TagLabelEntitled>
-            <UI.TagLabel>John</UI.TagLabel>
+            <UI.TagLabel>{username}</UI.TagLabel>
           </UI.TagLabelContainer>
         </UI.Tag>
       </UI.CenteredFlexContainer>
@@ -117,31 +200,34 @@ export default function TodoList() {
       <UI.TodoListContainer>
         {taskList.length > 0 ? (
           taskList.map(todo => (
-            <UI.Todo key={`todo-${todo.id}`} done={todo.done}>
+            <UI.Todo
+              key={`todo-${todo.id}`}
+              done={todo.done}
+              onClick={toggleTodo(todo)}
+            >
               <UI.TodoLabel>{todo.label}</UI.TodoLabel>
-              <UI.TodoIcon className="fa-solid fa-trash"></UI.TodoIcon>
+              <UI.TodoIcon
+                className="fa-solid fa-trash"
+                onClick={removeTodo(todo)}
+              ></UI.TodoIcon>
             </UI.Todo>
           ))
         ) : (
           <p>Vous n'avez pas encore de taches</p>
         )}
       </UI.TodoListContainer>
-
-      <UI.BottomNav>
-        <UI.BottomNavAction>
-          <UI.BottomNavShare>
-            <i className="fa-solid fa-share"></i>
-          </UI.BottomNavShare>
-          <UI.BottomNavDelete>
-            <i className="fa-solid fa-trash"></i>
-          </UI.BottomNavDelete>
-        </UI.BottomNavAction>
-
-        <UI.BottomNavMenu>
-          <UI.BottomNavItem className="fa-solid fa-bars"></UI.BottomNavItem>
-          <UI.BottomNavItem className="fa-solid fa-user"></UI.BottomNavItem>
-        </UI.BottomNavMenu>
-      </UI.BottomNav>
+      <BottomNav
+        topBar={
+          <UI.BottomNavAction>
+            <UI.BottomNavShare>
+              <i className="fa-solid fa-share"></i>
+            </UI.BottomNavShare>
+            <UI.BottomNavDelete>
+              <i className="fa-solid fa-trash"></i>
+            </UI.BottomNavDelete>
+          </UI.BottomNavAction>
+        }
+      />
     </UI.AppContainer>
   )
 }
