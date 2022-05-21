@@ -4,7 +4,7 @@ import uniqid from 'uniqid'
 import BottomNav from '../shared/BottomNav'
 import * as UI from '../shared/ui'
 import PubSub from 'pubsub-js'
-//import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 
 /**
  * Définie la forme d'un objet Todo
