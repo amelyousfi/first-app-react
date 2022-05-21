@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react'
+//import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import uniqid from 'uniqid'
 import BottomNav from '../shared/BottomNav'
 import * as UI from '../shared/ui'
 import PubSub from 'pubsub-js'
+//import React, { useState, useEffect } from 'react'
 
 /**
  * Définie la forme d'un objet Todo
@@ -71,6 +72,10 @@ export default function TodoList() {
     }
 
     PubSub.subscribe('changeUsername', onUsernameChange)
+    return () => {
+      console.log('Désinscription au topic changeUsername')
+      PubSub.unsubscribe(onUsernameChange)
+    }
   }, [])
 
   useEffect(() => {
